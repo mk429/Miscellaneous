@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+require 'nokogiri'
+require 'open-uri'
+require 'clipboard'
+
+doc = Nokogiri::HTML(open('http://www.emoji-cheat-sheet.com/'))
+emoji = doc.css('span.name').map(&:content)
+emoji_str = emoji.sample(3).map {|em| ":#{em}:" }.join(' ')
+Clipboard.copy(emoji_str)
+puts "Copied to clipboard: #{emoji_str}"
