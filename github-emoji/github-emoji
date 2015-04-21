@@ -4,8 +4,9 @@ require 'nokogiri'
 require 'open-uri'
 require 'clipboard'
 
+num_emoji = ARGV.count == 1 && ARGV[0].to_i || 3
 doc = Nokogiri::HTML(open('http://www.emoji-cheat-sheet.com/'))
 emoji = doc.css('span.name').map(&:content)
-emoji_str = emoji.sample(3).map {|em| ":#{em}:" }.join(' ')
+emoji_str = emoji.sample(num_emoji).map {|em| ":#{em}:" }.join(' ')
 Clipboard.copy(emoji_str)
 puts "Copied to clipboard: #{emoji_str}"
