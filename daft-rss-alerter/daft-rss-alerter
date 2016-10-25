@@ -1,54 +1,78 @@
-#!/usr/bin/env python
+#!/usr/bin/env ruby
 
-import datetime, time, subprocess, sys, string, feedparser, hashlib, re, os
+require 'set'
+require 'simple-rss'
+require 'pushover'
 
-#alert_cmd = "echo"
-alert_cmd = "pushover 'Daft Alert'"
-feed_urls = ["http://daft.ie/some-feed-url.rss"]
-feed_timeout = 5
-seen_log = os.path.expanduser("~/.daft-rss-alerter")
-regexen = ["Swords"]
+DAFT_RSS_URI = 'http://www.daft.ie/rss.daft?uid=<something>&id=<something>&xk=<something>'.freeze
+PUSHOVER_USER_KEY = ''.freeze
+PUSHOVER_API_KEY = 'aibCYvFD6uyqrmJMX33H4dTEdSPBev'.freeze # leave this as-is, or setup your own Pushover app
+SECONDS_BETWEEN_CHECKS = 300
 
-# compile regexen
-regexen = [re.compile(r) for r in regexen]
+class Ad
+  attr_reader :title, :link
 
-seen = set()
-try:
-	f = open(seen_log)
-	[seen.add(x.strip()) for x in f if x != '\n']
-	f.close()
-except:
-	pass
+  def self.from_rss_items(items)
+    items.map do |item|
+      new(title: item.title, link: item.link)
+    end.to_set
+  end
 
-# subs
-def append_seen(line):
-	seen.add(line)
-	f = open(seen_log, 'a')
-	f.write(line + '\n')
-	f.close()
+  def initialize(title:, link:)
+    @title = title
+    @link = link
+  end
 
-def get_listings(feed_url):
-	listings = []
-	d = feedparser.parse(feed_url)
-	for e in d['entries']:
-		desc = e['summary']
-		hd = hashlib.md5(desc).hexdigest()
-		if hd not in seen:
-			append_seen(hd)
-			listings.append(desc)
-	return listings
+  def to_s
+    "#{title}\n#{link}"
+  end
 
-# main
-print "Welcome to Daft Alerter"
-print
-while True:
-	for feed_url in feed_urls:
-		listings = get_listings(feed_url)
-		for desc in listings:
-			for reg in regexen:
-				if reg.match(desc) == None:
-					continue
-				print datetime.datetime.now().strftime('(%Y-%m-%d %H:%M)'), "Found a house matching", reg.pattern
-				subprocess.Popen("echo 'Listing matched " + reg.pattern + ": " + "url" + "'|" + alert_cmd, shell=True, stdout=open("/dev/null","w"), stderr=subprocess.STDOUT)
-		time.sleep(feed_timeout * 60)
+  def eql?(other)
+    # We don't care if title changes
+    other.is_a?(Ad) && other.link == link
+  end
 
+  def hash
+    link.hash
+  end
+end
+
+class DaftRssAlerter
+  class << self
+    def info(message)
+      print "\r[#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}] #{message}"
+    end
+
+    def notify(ads)
+      ads.each do |ad|
+        Pushover.notification(
+          user: PUSHOVER_USER_KEY,
+          token: PUSHOVER_API_KEY,
+          title: 'Daft RSS Alert',
+          message: ad.to_s
+        )
+      end
+    end
+
+    def fetch_rss_items!
+      xml = open(DAFT_RSS_URI)
+      rss = SimpleRSS.parse(xml)
+      rss.channel.items
+    end
+
+    def main
+      info("Watching #{DAFT_RSS_URI} for new properties...\n")
+      seen_ads = Ad.from_rss_items(fetch_rss_items!)
+      loop do
+        sleep SECONDS_BETWEEN_CHECKS
+        ads = Ad.from_rss_items(fetch_rss_items!)
+        new_ads = ads - seen_ads
+        info("Found #{new_ads.length} new properties")
+        notify(new_ads)
+        seen_ads += ads
+      end
+    end
+  end
+end
+
+DaftRssAlerter.main
