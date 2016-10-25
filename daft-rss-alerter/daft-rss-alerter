@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import datetime, time, subprocess, sys, string, feedparser, hashlib, re, os
+
+#alert_cmd = "echo"
+alert_cmd = "pushover 'Daft Alert'"
+feed_urls = ["http://daft.ie/some-feed-url.rss"]
+feed_timeout = 5
+seen_log = os.path.expanduser("~/.daft-rss-alerter")
+regexen = ["Swords"]
+
+# compile regexen
+regexen = [re.compile(r) for r in regexen]
+
+seen = set()
+try:
+	f = open(seen_log)
+	[seen.add(x.strip()) for x in f if x != '\n']
+	f.close()
+except:
+	pass
+
+# subs
+def append_seen(line):
+	seen.add(line)
+	f = open(seen_log, 'a')
+	f.write(line + '\n')
+	f.close()
+
+def get_listings(feed_url):
+	listings = []
+	d = feedparser.parse(feed_url)
+	for e in d['entries']:
+		desc = e['summary']
+		hd = hashlib.md5(desc).hexdigest()
+		if hd not in seen:
+			append_seen(hd)
+			listings.append(desc)
+	return listings
+
+# main
+print "Welcome to Daft Alerter"
+print
+while True:
+	for feed_url in feed_urls:
+		listings = get_listings(feed_url)
+		for desc in listings:
+			for reg in regexen:
+				if reg.match(desc) == None:
+					continue
+				print datetime.datetime.now().strftime('(%Y-%m-%d %H:%M)'), "Found a house matching", reg.pattern
+				subprocess.Popen("echo 'Listing matched " + reg.pattern + ": " + "url" + "'|" + alert_cmd, shell=True, stdout=open("/dev/null","w"), stderr=subprocess.STDOUT)
+		time.sleep(feed_timeout * 60)
+

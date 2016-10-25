@@ -1,0 +1,14 @@
+#!/bin/bash
+
+user_key='your-user-key';
+
+case $1 in
+"daft")
+  api_key='your-api-key';
+  ;;
+esac
+
+title=$2;
+message=$3;
+
+curl -s -F "token=$api_key" -F "user=$user_key" -F "message=$message" -F "title=$title" 'https://api.pushover.net/1/messages';
