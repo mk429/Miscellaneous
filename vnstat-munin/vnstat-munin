@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+require "json"
+
+class VnstatMunin
+  attr_reader :interface_name
+
+  def initialize(interface_name:)
+    @interface_name = interface_name
+  end
+
+  def config
+    puts <<~EOF
+      graph_title Traffic Usage
+      graph_args --base 1000 --lower-limit 0
+      graph_vlabel Traffic
+      graph_category network
+      graph_info Total network traffic in bytes.
+      total.label Total
+      total.info Total data sent and received.
+      total.cdef total,1024,*
+      totaltx.label Sent
+      totaltx.info Total data sent.
+      totaltx.cdef totaltx,1024,*
+      totalrx.label Received
+      totalrx.info Total data received.
+      totalrx.cdef totalrx,1024,*
+EOF
+  end
+
+  def update
+    puts "totaltx.value #{usage_today[:tx]}"
+    puts "totalrx.value #{usage_today[:rx]}"
+    puts "total.value #{usage_today[:total]}"
+  end
+
+  private def vnstat_json
+    @vnstat_json ||= JSON.parse(`vnstat --json`)
+  end
+
+  private def usage_today
+    return @usage_today if @usage_today
+    selected_interface = vnstat_json["interfaces"].find { |interface| interface["id"] == interface_name }
+    today = selected_interface["traffic"]["days"].find { |day| day["id"] == 0 }
+    @usage_today = {
+      rx: today["rx"],
+      tx: today["tx"],
+      total: today["rx"] + today["tx"]
+    }
+  end
+
+end
+
+vnstat = VnstatMunin.new(interface_name: "wlan0")
+case ARGV[0]
+when "config"
+  vnstat.config
+else
+  vnstat.update
+end
