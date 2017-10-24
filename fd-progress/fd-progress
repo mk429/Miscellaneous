@@ -43,6 +43,7 @@ class FdProgress
     descriptor = menu('Select a file descriptor', descriptors(process.pid).map(&:menu_item))
     gauge(process, descriptor)
     msgbox
+    exec('clear')
   end
 
   private
