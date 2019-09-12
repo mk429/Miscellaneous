@@ -32,17 +32,20 @@ class Descriptor
 end
 
 class FdProgress
-  attr_reader :command
+  attr_reader :command, :fd_num, :skip_msgbox
 
-  def initialize(command)
+  def initialize(command, fd_num, skip_msgbox)
     @command = command
+    @fd_num = fd_num
+    @skip_msgbox = skip_msgbox
   end
 
   def run
     process = menu('Select a process', processes.map(&:menu_item))
-    descriptor = menu('Select a file descriptor', descriptors(process.pid).map(&:menu_item))
+    descriptors_for_process = descriptors(process.pid)
+    descriptor = fd_num ? descriptors_for_process[fd_num.to_i] : menu('Select a file descriptor', descriptors_for_process.map(&:menu_item))
     gauge(process, descriptor)
-    msgbox
+    msgbox unless skip_msgbox
     exec('clear')
   end
 
@@ -119,9 +122,11 @@ class FdProgress
 end
 
 command = ARGV[0]
+fd_num = ARGV[1]
+skip_msgbox = ARGV[2]
 unless command
-  puts 'Usage: fd-progress <command name>' unless command
+  puts 'Usage: fd-progress <command name> [<fd number>]' unless command
   exit 1
 end
 
-FdProgress.new(command).run
+FdProgress.new(command, fd_num, skip_msgbox).run
