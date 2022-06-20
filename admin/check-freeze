@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+## check-freeze
+#
+# I was having some hardware issues (turned out to be a failing PSU) with
+# a server and it was sporadically freezing. This script helped me
+# understand the frequency of these freezes, and eliminate network as a
+# factor.
+
+drift_count = 0
+last_time = Time.now.to_i
+loop do
+  current_time = Time.now.to_i
+  diff = current_time - last_time
+  if diff > 1
+    drift_count += 1
+    puts "Lost #{diff} seconds. Drifted #{drift_count} times so far."
+  else
+    print "."
+  end
+  last_time = current_time
+  sleep 1
+end

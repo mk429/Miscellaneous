@@ -1,0 +1,20 @@
+#!/bin/bash
+
+## light-up
+#
+# Light up JBOD enclosure bays
+#
+
+if [ -z "$1" ]; then
+  echo "Lighting all online cages"
+  for i in /sys/class/enclosure/*/*/device/enclosure*/locate; do echo 1 > "$i"; done
+elif [ "x$1" = "xoff" ]; then
+  echo "Dimming all online cages"
+  for i in /sys/class/enclosure/*/*/device/enclosure*/locate; do echo 0 > "$i"; done
+elif [ "x$1" = "xalloff" ]; then
+  echo "Dimming all cages"
+  for i in /sys/class/enclosure/*/*/locate; do echo 0 > "$i"; done
+else
+  echo "Lighting up $1"
+  echo 1 > /sys/class/enclosure/*/*/device/block/"$1"/../../enclosure*/locate
+fi
